@@ -1,0 +1,21 @@
+services:
+  # Backend API Service
+  - type: web
+    name: backend-api
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+
+  # Frontend Service
+  - type: static
+    name: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://backend-api.onrender.com 
