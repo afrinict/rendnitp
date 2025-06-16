@@ -19,6 +19,13 @@ jobs:
         node-version: '18'
         cache: 'npm'
         
+    - name: Debug - List Files
+      run: |
+        echo "Current directory contents:"
+        ls -la
+        echo "Backend directory contents:"
+        ls -la backend || true
+        
     - name: Install Frontend Dependencies
       run: npm install
       
@@ -31,15 +38,32 @@ jobs:
     - name: Build Frontend
       run: npm run build
       
+    - name: Debug - Check Build Output
+      run: |
+        echo "Deploy directory contents:"
+        ls -la deploy || true
+        
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.8.0
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
         
+    - name: Debug - Check SSH Setup
+      run: |
+        echo "SSH agent status:"
+        ssh-add -l
+        echo "SSH known hosts:"
+        cat ~/.ssh/known_hosts || true
+        
     - name: Add SSH Known Hosts
       run: |
         mkdir -p ~/.ssh
         ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+        
+    - name: Debug - Test SSH Connection
+      run: |
+        echo "Testing SSH connection..."
+        ssh -v ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "echo 'SSH connection successful'"
         
     - name: Create Deployment Directory
       run: |
@@ -47,14 +71,17 @@ jobs:
         
     - name: Deploy Frontend
       run: |
-        scp -r deploy/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/var/www/rendnitp/
+        echo "Deploying frontend files..."
+        scp -v -r deploy/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/var/www/rendnitp/
         
     - name: Deploy Backend
       run: |
-        scp -r backend/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/var/www/rendnitp/backend/
+        echo "Deploying backend files..."
+        scp -v -r backend/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/var/www/rendnitp/backend/
         
     - name: Setup Backend
       run: |
+        echo "Setting up backend..."
         ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "cd /var/www/rendnitp/backend && \
         npm install && \
         pm2 delete rendnitp || true && \
@@ -63,6 +90,7 @@ jobs:
         
     - name: Configure Nginx
       run: |
+        echo "Configuring Nginx..."
         ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "sudo cp /var/www/rendnitp/nginx.conf /etc/nginx/sites-available/rendnitp && \
         sudo ln -sf /etc/nginx/sites-available/rendnitp /etc/nginx/sites-enabled/ && \
         sudo nginx -t && \
@@ -70,4 +98,7 @@ jobs:
         
     - name: Verify Deployment
       run: |
-        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "curl -I http://localhost:3000 || true" 
+        echo "Verifying deployment..."
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "curl -I http://localhost:3000 || true"
+        echo "Checking PM2 status..."
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "pm2 status" 
