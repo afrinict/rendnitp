@@ -1,0 +1,62 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install Dependencies
+      run: |
+        npm install
+        cd backend && npm install && cd ..
+        
+    - name: Build Frontend
+      run: npm run build
+      
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        
+    - name: Add SSH Known Hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+        
+    - name: Deploy
+      run: |
+        # Create deployment directory
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "mkdir -p /var/www/rendnitp"
+        
+        # Deploy frontend
+        scp -r deploy/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/var/www/rendnitp/
+        
+        # Deploy backend
+        scp -r backend/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/var/www/rendnitp/backend/
+        
+        # Setup and start backend
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "cd /var/www/rendnitp/backend && \
+        npm install && \
+        pm2 delete rendnitp || true && \
+        pm2 start index.js --name rendnitp && \
+        pm2 save"
+        
+        # Configure Nginx
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "sudo cp /var/www/rendnitp/nginx.conf /etc/nginx/sites-available/rendnitp && \
+        sudo ln -sf /etc/nginx/sites-available/rendnitp /etc/nginx/sites-enabled/ && \
+        sudo nginx -t && \
+        sudo systemctl reload nginx" 
