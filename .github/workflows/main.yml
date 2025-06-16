@@ -10,15 +10,18 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+    # 1. Checkout code
     - name: Checkout code
       uses: actions/checkout@v3
       
+    # 2. Setup Node.js
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18'
         cache: 'npm'
         
+    # 3. Verify Project Structure
     - name: Verify Project Structure
       run: |
         echo "Checking project structure..."
@@ -26,6 +29,7 @@ jobs:
         echo "Checking backend directory..."
         ls -la backend || true
         
+    # 4. Install Dependencies
     - name: Install Dependencies
       run: |
         echo "Installing frontend dependencies..."
@@ -33,6 +37,7 @@ jobs:
         echo "Installing backend dependencies..."
         cd backend && npm install && cd ..
         
+    # 5. Build Frontend
     - name: Build Frontend
       run: |
         echo "Building frontend..."
@@ -40,21 +45,25 @@ jobs:
         echo "Verifying build output..."
         ls -la deploy || true
         
+    # 6. Setup SSH
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.8.0
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
         
+    # 7. Add SSH Known Hosts
     - name: Add SSH Known Hosts
       run: |
         mkdir -p ~/.ssh
         ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
         
+    # 8. Verify SSH Connection
     - name: Verify SSH Connection
       run: |
         echo "Testing SSH connection..."
         ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "echo 'SSH connection successful'"
         
+    # 9. Deploy to Server
     - name: Deploy
       run: |
         echo "Creating deployment directory..."
@@ -79,6 +88,7 @@ jobs:
         sudo nginx -t && \
         sudo systemctl reload nginx"
         
+    # 10. Verify Deployment
     - name: Verify Deployment
       run: |
         echo "Checking PM2 status..."
