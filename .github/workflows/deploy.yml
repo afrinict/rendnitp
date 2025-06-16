@@ -10,47 +10,64 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
-    
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18'
         cache: 'npm'
-    
-    - name: Install Dependencies
+        
+    - name: Install Frontend Dependencies
+      run: npm install
+      
+    - name: Install Backend Dependencies
       run: |
-        npm install
         cd backend
         npm install
         cd ..
-    
+        
     - name: Build Frontend
       run: npm run build
-    
+      
     - name: Setup SSH
       uses: webfactory/ssh-agent@v0.8.0
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-    
+        
     - name: Add SSH Known Hosts
       run: |
         mkdir -p ~/.ssh
         ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
-    
-    - name: Deploy to Server
+        
+    - name: Create Deployment Directory
       run: |
-        # Create deployment directory
         ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "mkdir -p /var/www/rendnitp"
         
-        # Copy frontend build
+    - name: Deploy Frontend
+      run: |
         scp -r deploy/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/var/www/rendnitp/
         
-        # Copy backend files
+    - name: Deploy Backend
+      run: |
         scp -r backend/* ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}:/var/www/rendnitp/backend/
         
-        # Install backend dependencies and start server
-        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "cd /var/www/rendnitp/backend && npm install && pm2 restart rendnitp || pm2 start index.js --name rendnitp"
+    - name: Setup Backend
+      run: |
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "cd /var/www/rendnitp/backend && \
+        npm install && \
+        pm2 delete rendnitp || true && \
+        pm2 start index.js --name rendnitp && \
+        pm2 save"
         
-        # Reload Nginx
-        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "sudo systemctl reload nginx" 
+    - name: Configure Nginx
+      run: |
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "sudo cp /var/www/rendnitp/nginx.conf /etc/nginx/sites-available/rendnitp && \
+        sudo ln -sf /etc/nginx/sites-available/rendnitp /etc/nginx/sites-enabled/ && \
+        sudo nginx -t && \
+        sudo systemctl reload nginx"
+        
+    - name: Verify Deployment
+      run: |
+        ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} "curl -I http://localhost:3000 || true" 
