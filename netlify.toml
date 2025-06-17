@@ -1,11 +1,17 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  functions = "backend/functions"
   base = "."
 
 [build.environment]
   NODE_VERSION = "18.17.0"
   VITE_API_URL = "https://your-render-backend.onrender.com"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
 
 [[redirects]]
   from = "/*"
@@ -15,4 +21,6 @@
 [dev]
   command = "npm run dev"
   port = 5173
-  targetPort = 5173 
+  targetPort = 5173
+  functionsPort = 3000
+  autoLaunch = true 
