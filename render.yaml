@@ -1,7 +1,7 @@
 services:
   # Backend API Service
   - type: web
-    name: backend-api
+    name: rendnitp-backend
     env: node
     buildCommand: cd backend && npm install
     startCommand: cd backend && npm start
