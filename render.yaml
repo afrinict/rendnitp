@@ -7,7 +7,7 @@ services:
     buildCommand: |
       cd backend
       npm install
-    startCommand: cd backend && npm start
+    startCommand: cd backend && node index.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -15,6 +15,8 @@ services:
         value: 18.17.0
       - key: PORT
         value: 3000
+    healthCheckPath: /
+    autoDeploy: true
 
   # Frontend Service
   - type: static
